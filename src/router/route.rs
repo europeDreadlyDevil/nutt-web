@@ -1,26 +1,24 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use serde::Serialize;
 use tokio::net::TcpStream;
+use crate::http::method::Method;
 use crate::http::response::responder::Responder;
 
-pub struct Route<T, F, Fut, R>
-where T: Serialize + Clone + Send + Sync + 'static,
-      F: Fn() -> Fut + Send + Sync + 'static,
+pub struct Route<F, Fut, R>
+where F: Fn() -> Fut + Send + Sync + 'static,
       Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder<T> + Send + 'static
+      R: Responder + Send + 'static
 {
+    method: Method,
     path: String,
-    fabric: Arc<F>,
-    ty: Option<T>
+    fabric: Arc<Pin<Box<F>>>,
 }
 
-impl<T, F, Fut, R> Route<T, F, Fut, R>
-where T: Serialize + Clone + Send + Sync + 'static,
-      F: Fn() -> Fut + Send + Sync + 'static,
+impl<F, Fut, R> Route<F, Fut, R>
+where F: Fn() -> Fut + Send + Sync + 'static,
       Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder<T> + Send + 'static
+      R: Responder + Send + 'static
 {
     pub fn run_fabric(&self, stream: TcpStream) {
         let fabric = self.fabric.clone();
@@ -31,27 +29,29 @@ where T: Serialize + Clone + Send + Sync + 'static,
     }
 }
 
-impl<T, F, Fut, R> Route<T, F, Fut, R>
-where T: Serialize + Clone + Send + Sync + 'static,
-      F: Fn() -> Fut + Send + Sync + 'static,
+impl<F, Fut, R> Route<F, Fut, R>
+where F: Fn() -> Fut + Send + Sync + 'static,
       Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder<T> + Send + 'static
+      R: Responder + Send + 'static
 {
-    pub fn new(path: &str, fabric: F) -> Self {
-        Self { path: path.to_string(), fabric: Arc::new(fabric), ty: None}
+    pub fn new(method: Method, path: &str, fabric: F) -> Self {
+        Self { method, path: path.to_string(), fabric: Arc::new(Box::pin(fabric))}
     }
 
     #[inline]
-    pub fn get_path(&self) -> String {
-        self.path.clone()
+    pub fn get(&self) -> (Method, String) {
+        (self.method.clone(), self.path.clone())
     }
 }
 
 #[macro_export] macro_rules! get {
     ($path:expr, $fabric:expr ) => {
         {
+            use nutt_web::http::method::Method;
             use nutt_web::router::route::Route;
-            Route::new($path, $fabric)
+            use std::future::Future;
+            use std::pin::Pin;
+            Route::new(Method::GET, $path, Box::pin($fabric()))
         }
     };
 }

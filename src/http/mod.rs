@@ -1,9 +1,6 @@
-use std::any::Any;
-use std::collections::HashMap;
-use std::fmt::{write, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use serde::Serialize;
 use serde_json::{json, Value};
-use crate::http::status::StatusCode;
 
 pub mod status;
 pub mod response;
@@ -39,12 +36,12 @@ impl Display for HttpHeader {
 }
 
 #[derive(Clone)]
-pub struct HttpBody<T:  Serialize + Clone + Send>{
-    body: T
+pub struct HttpBody{
+    body: Value
 }
 
-impl<T: Serialize + Clone + Send> HttpBody<T> {
-    pub fn new(response: T) -> HttpBody<T> {
+impl HttpBody {
+    pub fn new(response: Value) -> HttpBody {
         Self {body: response}
     }
 }

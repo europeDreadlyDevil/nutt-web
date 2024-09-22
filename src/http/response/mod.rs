@@ -7,34 +7,34 @@ use crate::http::{HttpBody, HttpHeader};
 use crate::http::response::responder::Responder;
 use crate::http::status::StatusCode;
 
-pub struct Response<T:  Serialize + Clone + Send> {
+pub struct Response {
     header: HttpHeader,
     status: StatusCode,
-    body: HttpBody<T>
+    body: HttpBody
 }
 
-impl<T: Serialize + Clone + Send> Display for Response<T> {
+impl Display for Response {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let resp = format!("HTTP/1.1 {}\r\n{}\r\n{}\r\n\r\n", self.status.to_string(), self.header.to_string(), json!(self.body.body).to_string());
         write!(f, "{}", resp)
     }
 }
-pub struct ResponseBuilder<T:  Serialize + Clone + Send> {
+pub struct ResponseBuilder {
     status: StatusCode,
     header: HttpHeader,
-    body: HttpBody<T>,
+    body: HttpBody,
 }
 
-impl<T:  Serialize + Clone + Send> ResponseBuilder<T> {
-    pub fn new(status_code: StatusCode, response: T) -> Self {
+impl ResponseBuilder {
+    pub fn new<T: Serialize + Clone + Send>(status_code: StatusCode, response: T) -> Self {
         Self {
             status: status_code,
             header: HttpHeader::new(response.clone()),
-            body: HttpBody::new(response)
+            body: HttpBody::new(serde_json::to_value(response).unwrap())
         }
     }
 
-    pub fn build(self) -> Response<T> {
+    pub fn build(self) -> Response {
         Response {
             status: self.status,
             header: self.header,
@@ -43,8 +43,8 @@ impl<T:  Serialize + Clone + Send> ResponseBuilder<T> {
     }
 }
 
-impl<T:  Serialize + Clone + Send> Responder<T> for Response<T> {
-    fn into_response(self) -> Response<T> {
+impl Responder for Response {
+    fn into_response(self) -> Response {
         self
     }
 }

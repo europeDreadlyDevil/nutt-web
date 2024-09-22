@@ -1,19 +1,26 @@
-use serde::Serialize;
 use nutt_web::http::response::responder::Responder;
-use nutt_web::{get, NuttServer};
+use nutt_web::{box_route, routes, NuttServer};
+use nutt_web::http::method::Method;
+use nutt_web::http::response::Response;
 use nutt_web::router::route::Route;
 
 #[tokio::main]
 async fn main() {
-    let mut routes = Vec::new();
-    routes.push(get!("/", hello_world));
     NuttServer::new()
-        .routes(routes)
         .bind(("127.0.0.1", 8080))
-        .run().await
+        .routes(routes![
+            Route::new(Method::GET, "/", box_route!(hello_world)),
+            Route::new(Method::GET, "/bye", box_route!(bye_world))
+        ])
+        .run().await;
+
 }
 
 
-async fn hello_world() -> impl Responder<String> {
-    "Hello, World".to_string()
+async fn hello_world() -> Response {
+    "Hello, World".to_string().into_response()
+}
+
+async fn bye_world() -> Response {
+    10.into_response()
 }

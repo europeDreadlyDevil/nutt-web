@@ -4,45 +4,38 @@ pub mod router;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::future::Future;
-use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
-use serde::Serialize;
-use serde_json::json;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tracing_log::log::{log, Level};
 use crate::http::method::Method;
 use crate::http::response::responder::Responder;
-use crate::http::response::ResponseBuilder;
-use crate::http::status::StatusCode;
 use crate::router::route::Route;
 use crate::router::Router;
 
-pub struct NuttServer<T, F, Fut, R>
-where T: Serialize + Clone + Send + Sync + 'static,
-      F: Fn() -> Fut + Send + Sync + 'static,
+pub struct NuttServer<F, Fut, R>
+where F: Fn() -> Fut + Send + Sync + 'static,
       Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder<T> + Send + 'static
+      R: Responder + Send + 'static
 {
     address: Option<(String, u16)>,
-    router: Router<T, F, Fut, R>
+    router: Router<F, Fut, R>
 }
 
-impl<T, F, Fut, R> NuttServer<T, F, Fut, R>
-where T: Serialize + Clone + Send + Sync + 'static,
-      F: Fn() -> Fut + Send + Sync + 'static,
+impl<F, Fut, R> NuttServer<F, Fut, R>
+where F: Fn() -> Fut + Send + Sync + 'static,
       Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder<T> + Send + 'static
+      R: Responder + Send + 'static
 {
     pub fn new() -> Self {
         Self {
             address: None,
-            router: Router::<T, F, Fut, R>::new()
+            router: Router::new()
         }
     }
 
-    pub fn routes(mut self, routes: Vec<Route<T, F, Fut, R>>) -> Self {
+    pub fn routes(mut self, routes: Vec<Route<F, Fut, R>>) -> Self {
         for route in routes {
-            self.router.insert(&route.get_path(), route)
+            self.router.insert(route.get(), route)
         }
         self
     }
@@ -52,7 +45,7 @@ where T: Serialize + Clone + Send + Sync + 'static,
         self
     }
 
-    pub async fn run(mut self) {
+    pub async fn run(self) {
         tracing_subscriber::fmt::init();
         if let Some(address) = self.address {
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", address.0, address.1)).await.unwrap();
@@ -65,7 +58,7 @@ where T: Serialize + Clone + Send + Sync + 'static,
                         tokio::spawn(async move {
                             match Self::handle_stream(stream).await {
                                 Ok((method, path, stream)) => {
-                                    if let Some(route) = router_arc.get_by_path(&path) {
+                                    if let Some(route) = router_arc.get((method, path)) {
                                         route.run_fabric(stream)
                                     }
                                 }
@@ -84,22 +77,27 @@ where T: Serialize + Clone + Send + Sync + 'static,
         else { panic!("Server don't have address") }
     }
 
-    async fn handle_stream(mut stream: tokio::net::TcpStream) -> Result<(Method, String,  tokio::net::TcpStream), Box<dyn std::error::Error>> {
+    async fn handle_stream(mut stream: tokio::net::TcpStream) -> Result<(Method, String,  tokio::net::TcpStream), Box<dyn Error>> {
         let mut buf_reader = BufReader::new(&mut stream);
-        let mut http_request = DisplayableVec(Vec::new());
+        // let mut http_request = DisplayableVec(Vec::new());
 
-        loop {
-            let mut line = String::new();
-            let bytes_read = buf_reader.read_line(&mut line).await?;
-            if bytes_read == 0 || line == "\r\n" {
-                break;
-            }
-            http_request.0.push(line);
+        let mut first_line = String::new();
+        buf_reader.read_line(&mut first_line).await?;
+
+        let tokens: Vec<&str> = first_line.split_whitespace().collect();
+        if tokens.len() != 3 {
+            return Err("Invalid HTTP request line".into());
         }
 
-        log!(Level::Info, "Request: {http_request}");
+        let method = match tokens[0] {
+            "GET" => Method::GET,
+            _ => return Err("Unsupported HTTP method".into()),
+        };
 
-        Ok((Method::GET, "/".to_string(), stream))
+        let path = tokens[1].to_string();
+        log!(Level::Info, "Request Method: {}, Path: {}", method, path);
+
+        Ok((method, path, stream))
     }
 
 }

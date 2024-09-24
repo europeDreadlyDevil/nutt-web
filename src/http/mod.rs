@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 pub mod status;
 pub mod response;
 pub mod method;
+pub mod request;
 
 pub struct HttpHeader {
     headers: Value
@@ -41,7 +42,7 @@ pub struct HttpBody{
 }
 
 impl HttpBody {
-    pub fn new(response: Value) -> HttpBody {
-        Self {body: response}
+    pub fn new(value: Value) -> HttpBody {
+        Self {body: value }
     }
 }

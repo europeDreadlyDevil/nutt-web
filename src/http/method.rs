@@ -2,13 +2,19 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum Method {
-    GET
+    GET,
+    POST,
+    PUT,
+    DELETE
 }
 
 impl Display for Method {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f,"{}", match self {
-            Method::GET => "GET"
+            Method::GET => "GET",
+            Method::POST => "POST",
+            Method::PUT => "PUT",
+            Method::DELETE => "DELETE"
         })
     }
 }

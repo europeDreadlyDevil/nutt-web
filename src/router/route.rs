@@ -3,39 +3,30 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use crate::http::method::Method;
+use crate::http::request::Request;
 use crate::http::response::responder::Responder;
+use crate::http::response::Response;
 
-pub struct Route<F, Fut, R>
-where F: Fn() -> Fut + Send + Sync + 'static,
-      Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder + Send + 'static
+pub struct Route
 {
     method: Method,
     path: String,
-    fabric: Arc<Pin<Box<F>>>,
+    fabric: Arc<fn(Request) -> Pin<Box<dyn Future<Output = Response> + Send + Sync>>>,
 }
 
-impl<F, Fut, R> Route<F, Fut, R>
-where F: Fn() -> Fut + Send + Sync + 'static,
-      Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder + Send + 'static
-{
-    pub fn run_fabric(&self, stream: TcpStream) {
+impl Route{
+    pub fn run_fabric(&self, stream: TcpStream, req: Request) {
         let fabric = self.fabric.clone();
         tokio::spawn(async move {
-            let resp = fabric().await;
+            let resp = fabric(req).await;
             stream.try_write(resp.into_response().to_string().as_bytes()).unwrap()
         });
     }
 }
 
-impl<F, Fut, R> Route<F, Fut, R>
-where F: Fn() -> Fut + Send + Sync + 'static,
-      Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder + Send + 'static
-{
-    pub fn new(method: Method, path: &str, fabric: F) -> Self {
-        Self { method, path: path.to_string(), fabric: Arc::new(Box::pin(fabric))}
+impl Route {
+    pub fn new(method: Method, path: &str, fabric: fn(Request) -> Pin<Box<dyn Future<Output=Response> + Send + Sync>>) -> Self {
+        Self { method, path: path.to_string(), fabric: Arc::new(fabric)}
     }
 
     #[inline]
@@ -45,13 +36,58 @@ where F: Fn() -> Fut + Send + Sync + 'static,
 }
 
 #[macro_export] macro_rules! get {
-    ($path:expr, $fabric:expr ) => {
+    ($path:expr, $func:expr, $($arg:ty),* ) => {
         {
             use nutt_web::http::method::Method;
             use nutt_web::router::route::Route;
             use std::future::Future;
             use std::pin::Pin;
-            Route::new(Method::GET, $path, Box::pin($fabric()))
+            Route::new(Method::GET, $path, box_route!($func, $($arg),*))
+        }
+    };
+    ($path:expr, $func:expr) => {
+        {
+            use nutt_web::http::method::Method;
+            use nutt_web::router::route::Route;
+            use std::future::Future;
+            use std::pin::Pin;
+            Route::new(Method::GET, $path, box_route!($func))
+        }
+    };
+}
+
+#[macro_export] macro_rules! post {
+    ($path:expr, $func:expr ) => {
+        {
+            use nutt_web::http::method::Method;
+            use nutt_web::router::route::Route;
+            use std::future::Future;
+            use std::pin::Pin;
+            Route::new(Method::POST, $path, box_route!($func))
+        }
+    };
+}
+
+#[macro_export] macro_rules! put {
+    ($path:expr, $func:expr ) => {
+        {
+            use nutt_web::http::method::Method;
+            use nutt_web::router::route::Route;
+            use std::future::Future;
+            use std::pin::Pin;
+            Route::new(Method::PUT, $path, box_route!($func))
+        }
+    };
+}
+
+#[macro_export] macro_rules! delete {
+    ($path:expr, $func:expr ) => {
+        {
+            use nutt_web::http::method::Method;
+            use nutt_web::router::route::Route;
+            use std::future::Future;
+            use std::pin::Pin;
+            Route::new(Method::DELETE, $path, box_route!($func))
         }
     };
 }

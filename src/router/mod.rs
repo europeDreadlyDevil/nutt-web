@@ -1,35 +1,25 @@
 use std::collections::HashMap;
-use std::future::Future;
 use crate::http::method::Method;
-use crate::http::response::responder::Responder;
 use crate::router::route::Route;
 
 pub mod route;
 
-pub struct Router<F, Fut, R>
-where F: Fn() -> Fut + Send + Sync + 'static,
-      Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder + Send + 'static
-{
-    routes: HashMap<(Method, String), Route<F, Fut, R>>
+pub struct Router{
+    routes: HashMap<(Method, String), Route>
 }
 
-impl<F, Fut, R> Router<F, Fut, R>
-where F: Fn() -> Fut + Send + Sync + 'static,
-      Fut: Future<Output=R> + Send + Sync + 'static,
-      R: Responder + Send + 'static
-{
+impl Router{
     pub fn new() -> Self {
         Self {
             routes: HashMap::new()
         }
     }
 
-    pub fn insert(&mut self, key: (Method, String), route: Route<F, Fut, R>) {
+    pub fn insert(&mut self, key: (Method, String), route: Route) {
         self.routes.insert(key, route);
     }
 
-    pub fn get(&self, key: (Method, String)) -> Option<&Route<F, Fut, R>> {
+    pub fn get(&self, key: (Method, String)) -> Option<&Route> {
         self.routes.get(&key)
     }
 }
@@ -43,18 +33,44 @@ where F: Fn() -> Fut + Send + Sync + 'static,
     );
  }
 
-#[macro_export] macro_rules! box_route {
-     ($func:expr) => {
-         {
-             use std::pin::Pin;
-             use std::future::Future;
-             use nutt_web::http::response::Response;
+#[macro_export]
+macro_rules! box_route {
+    // Макрос принимает функцию с аргументами
+    ($func:expr, $($arg:ty),*) => {
+        {
+            use std::pin::Pin;
+            use std::future::Future;
+            use nutt_web::http::response::Response;
+            use nutt_web::http::status::StatusCode;
+            use nutt_web::http::response::ResponseBuilder;
+            use serde::de::DeserializeOwned;
+            use nutt_web::http::request::Request;
 
-             || -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
-                 Box::pin($func())
-             } as fn() -> _
-         }
+            move |req: Request| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
 
-     };
- }
+                $(
+                    let arg: $arg = match req.body_json::<$arg>() {
+                        Ok(data) => data,
+                        Err(_) => return Box::pin( async { ResponseBuilder::new(StatusCode::BadRequest, "Invalid data").build() }),
+                    };
+                )*
+
+                Box::pin($func(arg))
+            } as fn(Request) -> _
+        }
+    };
+
+    ($func:expr) => {
+        {
+            use std::pin::Pin;
+            use std::future::Future;
+            use nutt_web::http::response::Response;
+            use nutt_web::http::request::Request;
+            |req: Request| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
+                Box::pin($func())
+            } as fn(Request) -> _
+        }
+    };
+}
+
 

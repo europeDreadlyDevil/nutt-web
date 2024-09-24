@@ -16,3 +16,15 @@ impl Responder for i32 {
         ResponseBuilder::new(StatusCode::Ok, self).build()
     }
 }
+
+impl Responder for &str {
+    fn into_response(self) -> Response {
+        ResponseBuilder::new(StatusCode::Ok, self).build()
+    }
+}
+
+#[macro_export] macro_rules! not_found {
+    () => {
+        ResponseBuilder::new(StatusCode::NotFound, "").build()
+    };
+}

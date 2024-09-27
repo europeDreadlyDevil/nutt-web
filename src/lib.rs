@@ -46,7 +46,7 @@ impl NuttServer{
         self
     }
 
-    pub fn state<T: Sync + Send + 'static + for<'a> Deserialize<'a>>(mut self, state: (String, State<T>)) -> Self {
+    pub fn state<T: Sync + Send + 'static + for<'a> Deserialize<'a>>(self, state: (String, State<T>)) -> Self {
         self.states.try_write().unwrap().insert(state.0, Box::new(state.1));
         self
     }

@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use nutt_web::http::response::{Response, ResponseBuilder};
 use nutt_web::{routes, NuttServer};
 use nutt_web::router::{get};
-use tracing_log::log::log;
-use tracing_log::log::Level;
 use nutt_web::http::response::responder::Responder;
 use nutt_web::http::status::StatusCode;
 use nutt_web::router::route::Route;

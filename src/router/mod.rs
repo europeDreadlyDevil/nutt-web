@@ -4,6 +4,8 @@ use crate::router::route::Route;
 
 pub mod route;
 
+pub use nutt_web_macro::{get, post};
+
 pub struct Router{
     routes: HashMap<(Method, String), Route>
 }
@@ -26,51 +28,63 @@ impl Router{
 
 #[macro_export] macro_rules! routes {
     ($elem:expr; $n:expr) => (
-        vec![$elem]
+        vec![($elem)()]
     );
     ($($x:expr),+ $(,)?) => (
-        Vec::from(vec![$($x),+])
+        Vec::from(vec![$(($x)()),+])
     );
+    () => (
+        Vec::new()
+    )
  }
 
-#[macro_export]
 macro_rules! box_route {
-    // Макрос принимает функцию с аргументами
-    ($func:expr, $($arg:ty),*) => {
+    // Макрос для функций с любыми аргументами (state, body или их комбинация)
+    ($func:expr, $( $arg:ident : $arg_ty:ty ),* ) => {
         {
             use std::pin::Pin;
             use std::future::Future;
             use nutt_web::http::response::Response;
-            use nutt_web::http::status::StatusCode;
-            use nutt_web::http::response::ResponseBuilder;
-            use serde::de::DeserializeOwned;
             use nutt_web::http::request::Request;
 
-            move |req: Request| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
+            use serde::de::DeserializeOwned;
 
+            move |req: Request, state: StateArgs| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
+                let mut extracted_args = vec![];
+
+                // Проходим по каждому аргументу и проверяем его тип
                 $(
-                    let arg: $arg = match req.body_json::<$arg>() {
-                        Ok(data) => data,
-                        Err(_) => return Box::pin( async { ResponseBuilder::new(StatusCode::BadRequest, "Invalid data").build() }),
-                    };
+                    if std::any::TypeId::of::<$arg_ty>() == std::any::TypeId::of::<State<Any>>
+                    // Если аргумент - тело JSON, десериализуем его
+                    if std::any::TypeId::of::<$arg_ty>() == std::any::TypeId::of::<Json>() {
+                        let body: $arg_ty = match req.body_json::<$arg_ty>().await {
+                            Ok(data) => data,
+                            Err(_) => return Box::pin(async { Response::bad_request("Invalid JSON body").into_response() }),
+                        };
+                        extracted_args.push(body);
+                    }
+
                 )*
 
-                Box::pin($func(arg))
-            } as fn(Request) -> _
+                // Вызов функции с динамически собранными аргументами
+                Box::pin($func(extracted_args))
+            } as fn(Request, StateArgs) -> _
         }
     };
 
+    // Макрос для функций без аргументов
     ($func:expr) => {
         {
             use std::pin::Pin;
             use std::future::Future;
             use nutt_web::http::response::Response;
-            use nutt_web::http::request::Request;
-            |req: Request| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
+
+            || -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
                 Box::pin($func())
-            } as fn(Request) -> _
+            } as fn(Request, Args) -> _
         }
     };
 }
+
 
 

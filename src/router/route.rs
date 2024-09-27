@@ -63,7 +63,7 @@ impl Route {
             use nutt_web::router::route::Route;
             use std::future::Future;
             use std::pin::Pin;
-            Route::new(Method::POST, $path, box_route!($func))
+            Route::new(Method::POST, $path, $func)
         }
     };
 }

@@ -121,12 +121,21 @@ dependencies = [
 name = "nutt-web"
 version = "0.0.0"
 dependencies = [
+ "nutt-web-macro",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "nutt-web-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn",
 ]
 
 [[package]]

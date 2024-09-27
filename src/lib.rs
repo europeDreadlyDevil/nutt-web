@@ -1,8 +1,10 @@
 pub mod http;
 pub mod router;
-mod state;
+pub mod state;
 mod displayeble;
 
+use std::any::Any;
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
@@ -17,14 +19,16 @@ use crate::http::response::ResponseBuilder;
 
 pub struct NuttServer{
     address: Option<(String, u16)>,
-    router: Router
+    router: Router,
+    states: HashMap<String, Box<dyn Any + Send + Sync>>
 }
 
 impl NuttServer{
     pub fn new() -> Self {
         Self {
             address: None,
-            router: Router::new()
+            router: Router::new(),
+            states: HashMap::new()
         }
     }
 

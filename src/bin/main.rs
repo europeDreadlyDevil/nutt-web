@@ -1,31 +1,49 @@
-use serde::{Deserialize, Serialize};
-use tracing_log::log::{log, Level};
-use nutt_web::http::response::responder::Responder;
-use nutt_web::{box_route, get, routes, NuttServer};
-use nutt_web::http::response::{Response, ResponseBuilder};
-use nutt_web::http::status::StatusCode;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Json {
-    name: String
-}
+use serde::Deserialize;
+use nutt_web::http::response::Response;
+use nutt_web::{routes, NuttServer};
+use nutt_web::router::{get, post};
+use tracing_log::log::log;
+use tracing_log::log::Level;
+use nutt_web::http::response::responder::Responder;
+use nutt_web::router::route::Route;
 
 #[tokio::main]
 async fn main() {
-    NuttServer::new()
-        .bind(("127.0.0.1", 8080))
-        .routes(routes!(
-            get!("/", hello, Json),
-            get!("/bye", bye)
-        ))
-        .run().await
+    let app = App::new();
+    app.run().await;
 }
 
-async fn hello(data: Json) -> Response {
-    log!(Level::Info, "{:#?}", data);
-    ResponseBuilder::new(StatusCode::Accepted, "data accepted").build()
+#[derive(Deserialize, Clone, Debug)]
+struct Data {
+    login: String,
+    password: String,
 }
 
-async fn bye() -> Response {
-    "bye".into_response()
+struct App {
+    server: NuttServer
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self {
+            server: NuttServer::new()
+                .bind(("127.0.0.1", 8080))
+                .routes(routes!(App::hello, App::post_data))
+        }
+    }
+    pub async fn run(self) {
+        self.server.run().await
+    }
+
+    #[get("/")]
+    async fn hello() -> Response {
+        "Hello, world!".into_response()
+    }
+
+    #[post("/data")]
+    async fn post_data(data: Data) -> Response {
+        log!(Level::Info, "Request data: {:?}", data);
+        "Data accepted".into_response()
+    }
 }

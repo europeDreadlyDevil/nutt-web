@@ -1,1 +1,3 @@
 /target
+.idea
+src/router/nutt-web-macro/target/

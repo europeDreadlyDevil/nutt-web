@@ -6,7 +6,8 @@ mod displayeble;
 use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use serde::Deserialize;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tracing_log::log::{log, Level};
 use crate::displayeble::DisplayableVec;
@@ -16,11 +17,12 @@ use crate::router::route::Route;
 use crate::router::Router;
 use crate::http::status::StatusCode;
 use crate::http::response::ResponseBuilder;
+use crate::state::State;
 
 pub struct NuttServer{
     address: Option<(String, u16)>,
     router: Router,
-    states: HashMap<String, Box<dyn Any + Send + Sync>>
+    states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>
 }
 
 impl NuttServer{
@@ -28,7 +30,7 @@ impl NuttServer{
         Self {
             address: None,
             router: Router::new(),
-            states: HashMap::new()
+            states: Arc::new(RwLock::new(HashMap::new()))
         }
     }
 
@@ -44,20 +46,28 @@ impl NuttServer{
         self
     }
 
+    pub fn state<T: Sync + Send + 'static + for<'a> Deserialize<'a>>(mut self, state: (String, State<T>)) -> Self {
+        self.states.try_write().unwrap().insert(state.0, Box::new(state.1));
+        self
+    }
+
     pub async fn run(self) {
         tracing_subscriber::fmt::init();
         if let Some(address) = self.address {
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", address.0, address.1)).await.unwrap();
             log!(Level::Info, "Server started on {}:{}", address.0, address.1);
             let router = Arc::new(self.router);
+            let states = self.states.clone();
             loop {
                 let router_arc = router.clone();
+                let states_arc = states.clone();
                 match listener.accept().await {
                     Ok((stream, _)) => {
                         tokio::task::spawn(async move {
                             match Self::handle_stream(stream).await {
-                                Ok((method, path, stream, req)) => {
+                                Ok((method, path, stream,mut req)) => {
                                     if let Some(route) = router_arc.get((method, path)) {
+                                        req.set_states(states_arc.clone());
                                         route.run_fabric(stream, req)
                                     } else {
                                         stream.try_write(not_found!().to_string().as_bytes()).unwrap();

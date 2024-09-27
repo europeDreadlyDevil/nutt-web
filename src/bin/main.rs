@@ -1,12 +1,14 @@
 
-use serde::Deserialize;
-use nutt_web::http::response::Response;
+use serde::{Deserialize, Serialize};
+use nutt_web::http::response::{Response, ResponseBuilder};
 use nutt_web::{routes, NuttServer};
-use nutt_web::router::{get, post};
+use nutt_web::router::{get};
 use tracing_log::log::log;
 use tracing_log::log::Level;
 use nutt_web::http::response::responder::Responder;
+use nutt_web::http::status::StatusCode;
 use nutt_web::router::route::Route;
+use nutt_web::state::State;
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +16,7 @@ async fn main() {
     app.run().await;
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct Data {
     login: String,
     password: String,
@@ -26,10 +28,12 @@ struct App {
 
 impl App {
     pub fn new() -> Self {
+        let data = State::new(10);
         Self {
             server: NuttServer::new()
                 .bind(("127.0.0.1", 8080))
-                .routes(routes!(App::hello, App::post_data))
+                .routes(routes!(App::hello))
+                .state(("num".into(), data))
         }
     }
     pub async fn run(self) {
@@ -37,13 +41,9 @@ impl App {
     }
 
     #[get("/")]
-    async fn hello() -> Response {
-        "Hello, world!".into_response()
+    async fn hello(num: State<i32>, data: Data) -> Response {
+        println!("{num:?} {:?}", data);
+        ResponseBuilder::new(StatusCode::Accepted, data).build().into_response()
     }
 
-    #[post("/data")]
-    async fn post_data(data: Data) -> Response {
-        log!(Level::Info, "Request data: {:?}", data);
-        "Data accepted".into_response()
-    }
 }

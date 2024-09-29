@@ -1,19 +1,19 @@
-use std::collections::HashMap;
 use crate::http::method::Method;
 use crate::router::route::Route;
+use std::collections::HashMap;
 
 pub mod route;
 
-pub use nutt_web_macro::{get};
+pub use nutt_web_macro::{delete, get, post, put};
 
-pub struct Router{
-    routes: HashMap<(Method, String), Route>
+pub struct Router {
+    routes: HashMap<(Method, String), Route>,
 }
 
-impl Router{
+impl Router {
     pub fn new() -> Self {
         Self {
-            routes: HashMap::new()
+            routes: HashMap::new(),
         }
     }
 
@@ -26,7 +26,8 @@ impl Router{
     }
 }
 
-#[macro_export] macro_rules! routes {
+#[macro_export]
+macro_rules! routes {
     ($elem:expr; $n:expr) => (
         vec![($elem)()]
     );
@@ -37,6 +38,3 @@ impl Router{
         Vec::new()
     )
  }
-
-
-

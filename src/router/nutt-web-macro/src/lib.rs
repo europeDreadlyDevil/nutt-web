@@ -1,34 +1,47 @@
+use core::panic;
 use proc_macro::TokenStream;
-use std::any::Any;
-use std::fmt::Debug;
 use proc_macro2::Ident;
+use std::fmt::Debug;
 use syn::__private::quote::quote;
-use syn::{FnArg, ItemFn, Lit, Pat, PatType, Path, PathSegment, Type, TypePath, TypeReference};
-use syn::__private::{ToTokens, TokenStreamExt};
+use syn::__private::{ToTokens};
+use syn::{FnArg, ItemFn, Lit, Pat, PatType, Type, TypePath, TypeReference};
 
 #[derive(Debug)]
 enum ArgType {
     TypePath(TypePath),
-    TypeRef(TypeReference)
+    TypeRef(TypeReference),
 }
 
 impl ToTokens for ArgType {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            ArgType::TypePath(ty) => {ty.to_tokens(tokens)}
-            ArgType::TypeRef(ty) => {ty.to_tokens(tokens)}
+            ArgType::TypePath(ty) => ty.to_tokens(tokens),
+            ArgType::TypeRef(ty) => ty.to_tokens(tokens),
         }
     }
 }
 
-fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> (ItemFn, Ident, String, Vec<Ident>, Vec<ArgType>, Vec<Ident>, Vec<ArgType>, Vec<Ident>, Vec<ArgType>) {
+type FnItems = (
+    ItemFn,
+    Ident,
+    String,
+    Vec<Ident>,
+    Vec<ArgType>,
+    Vec<Ident>,
+    Vec<ArgType>,
+    Vec<Ident>,
+    Vec<ArgType>,
+);
+
+fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems {
     let item = syn::parse::<ItemFn>(item.clone()).unwrap();
     let attr = syn::parse::<Lit>(attr).unwrap();
     let mut path = String::new();
     if let Lit::Str(lit) = attr {
         path = lit.value()
+    } else {
+        panic!("Path should be string")
     }
-    else { panic!("Path should be string") }
     let ident = item.clone().sig.ident;
     let args = item.clone().sig.inputs.into_iter().collect::<Vec<FnArg>>();
     let mut args_ident = vec![];
@@ -40,7 +53,7 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> (ItemFn,
     //println!("{:?}", args);
 
     for arg in &args {
-        if let FnArg::Typed(PatType{pat, ty,..}) = arg {
+        if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
             if let Pat::Ident(ident) = *pat.clone() {
                 args_ident.push(ident.ident.clone());
             }
@@ -64,12 +77,39 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> (ItemFn,
         }
     }
     //println!("{:?} {:?}", args_ident, args_ty_json);
-    (item, ident, path, args_ident, args_ty, args_ident_json, args_ty_json, args_ident_state, args_ty_state)
+    (
+        item,
+        ident,
+        path,
+        args_ident,
+        args_ty,
+        args_ident_json,
+        args_ty_json,
+        args_ident_state,
+        args_ty_state,
+    )
 }
 
-#[proc_macro_attribute]
-pub fn get(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let (item, ident, path, args_ident, args_ty, args_ident_json, args_ty_json, args_ident_state, args_ty_state) = get_fn_and_args_from_stream(attr, item);
+fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
+    let (
+        item,
+        ident,
+        path,
+        args_ident,
+        _args_ty,
+        args_ident_json,
+        args_ty_json,
+        args_ident_state,
+        args_ty_state,
+    ) = fn_items;
+
+    let method = match method {
+        "get" => quote! { Method::GET },
+        "post" => quote! {Method::POST},
+        "put" => quote! {Method::PUT},
+        "delete" => quote! {Method::DELETE},
+        _ => panic!("Unhandling method"),
+    };
     let stream = quote! {
 
         fn #ident() -> Route {
@@ -94,10 +134,33 @@ pub fn get(attr: TokenStream, item: TokenStream) -> TokenStream {
                 Box::pin(#ident(#(#args_ident.clone(),)*))
             } as fn(Request) -> _;
 
-            return Route::new(Method::GET, #path, f)
+            return Route::new(#method, #path, f)
         }
     };
 
     stream.into()
 }
 
+#[proc_macro_attribute]
+pub fn get(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let fn_items = get_fn_and_args_from_stream(attr, item);
+    get_stream("get", fn_items)
+}
+
+#[proc_macro_attribute]
+pub fn post(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let fn_items = get_fn_and_args_from_stream(attr, item);
+    get_stream("post", fn_items)
+}
+
+#[proc_macro_attribute]
+pub fn put(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let fn_items = get_fn_and_args_from_stream(attr, item);
+    get_stream("put", fn_items)
+}
+
+#[proc_macro_attribute]
+pub fn delete(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let fn_items = get_fn_and_args_from_stream(attr, item);
+    get_stream("delete", fn_items)
+}

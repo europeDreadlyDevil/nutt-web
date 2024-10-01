@@ -50,7 +50,6 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
     let mut args_ident_json = vec![];
     let mut args_ty_json = vec![];
     let mut args_ty_state = vec![];
-    //println!("{:?}", args);
 
     for arg in &args {
         if let FnArg::Typed(PatType { pat, ty, .. }) = arg {

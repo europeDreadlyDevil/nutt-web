@@ -16,13 +16,19 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, RwLock};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::io::{ AsyncReadExt};
 use tracing_log::log::{log, Level};
 
 pub struct NuttServer {
     address: Option<(String, u16)>,
     router: Router,
     states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>,
+}
+
+impl Default for NuttServer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NuttServer {

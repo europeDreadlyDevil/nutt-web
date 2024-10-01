@@ -15,7 +15,7 @@ pub struct Response {
 
 impl Display for Response {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let resp = format!("HTTP/1.1 {}\r\n{}\r\n{}\r\n\r\n", self.status.to_string(), self.header.to_string(), json!(self.body.body).to_string());
+        let resp = format!("HTTP/1.1 {}\r\n{}\r\n{}\r\n\r\n", self.status, self.header, json!(self.body.body));
         write!(f, "{}", resp)
     }
 }

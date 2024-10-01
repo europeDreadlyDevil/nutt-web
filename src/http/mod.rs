@@ -30,7 +30,7 @@ impl Display for HttpHeader {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut headers = String::new();
         for (key, value) in self.headers.as_object().unwrap() {
-            headers.push_str(&format!("{}: {}\r\n", key, value.to_string()))
+            headers.push_str(&format!("{}: {}\r\n", key, value))
         }
         write!(f, "{}", headers)
     }

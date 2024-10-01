@@ -57,9 +57,7 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
                 args_ident.push(ident.ident.clone());
             }
             if let Type::Path(ty) = *ty.clone() {
-                println!("{:?}", ty.path);
-                let seg = ty.path.segments.iter().nth(0).unwrap().clone().ident;
-                println!("{}", seg);
+                let seg = ty.path.segments.iter().next().unwrap().clone().ident;
                 if &seg.to_string() == "State" {
                     args_ty_state.push(ArgType::TypePath(ty.clone()));
                     if let Pat::Ident(ident) = *pat.clone() {
@@ -75,7 +73,6 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
             }
         }
     }
-    //println!("{:?} {:?}", args_ident, args_ty_json);
     (
         item,
         ident,

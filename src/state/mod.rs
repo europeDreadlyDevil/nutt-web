@@ -10,12 +10,12 @@ impl<T> State<T> {
         Self(Arc::new(RwLock::new(value)))
     }
     pub fn read(&self) -> RwLockReadGuard<T> {
-        while let Err(_) = self.0.try_read() {}
+        while self.0.try_read().is_err() {}
         self.0.read().unwrap()
     }
 
     pub fn write(&self) -> RwLockWriteGuard<T> {
-        while let Err(_) = self.0.try_write() {}
+        while self.0.try_write().is_err() {}
         self.0.write().unwrap()
     }
 

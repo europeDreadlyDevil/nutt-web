@@ -1,18 +1,18 @@
-use std::fmt::{Display, Formatter};
 use serde::Serialize;
 use serde_json::{json, Value};
+use std::fmt::{Display, Formatter};
 
-pub mod status;
-pub mod response;
 pub mod method;
 pub mod request;
+pub mod response;
+pub mod status;
 
 pub struct HttpHeader {
-    headers: Value
+    headers: Value,
 }
 
 impl HttpHeader {
-    pub fn new<T:  Serialize + Clone + Send>(response: T) -> Self {
+    pub fn new<T: Serialize + Clone + Send>(response: T) -> Self {
         let content = serde_json::to_string(&response).unwrap();
         let base_headers = json!({
             "Content-Type": "application/json",
@@ -21,7 +21,7 @@ impl HttpHeader {
         });
 
         Self {
-            headers: base_headers
+            headers: base_headers,
         }
     }
 }
@@ -36,13 +36,13 @@ impl Display for HttpHeader {
     }
 }
 
-#[derive(Clone)]
-pub struct HttpBody{
-    body: Value
+#[derive(Clone, Debug)]
+pub struct HttpBody {
+    body: Value,
 }
 
 impl HttpBody {
     pub fn new(value: Value) -> HttpBody {
-        Self {body: value }
+        Self { body: value }
     }
 }

@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use std::fmt::Debug;
 use syn::__private::quote::quote;
-use syn::__private::{ToTokens};
+use syn::__private::ToTokens;
 use syn::{FnArg, ItemFn, Lit, Pat, PatType, Type, TypePath, TypeReference};
 
 #[derive(Debug)]
@@ -31,6 +31,8 @@ type FnItems = (
     Vec<ArgType>,
     Vec<Ident>,
     Vec<ArgType>,
+    Vec<Ident>,
+    Vec<ArgType>,
 );
 
 fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems {
@@ -50,6 +52,8 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
     let mut args_ident_json = vec![];
     let mut args_ty_json = vec![];
     let mut args_ty_state = vec![];
+    let mut args_ident_session = vec![];
+    let mut args_ty_session = vec![];
 
     for arg in &args {
         if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
@@ -62,6 +66,11 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
                     args_ty_state.push(ArgType::TypePath(ty.clone()));
                     if let Pat::Ident(ident) = *pat.clone() {
                         args_ident_state.push(ident.ident.clone());
+                    }
+                } else if &seg.to_string() == "CookieSession" {
+                    args_ty_session.push(ArgType::TypePath(ty.clone()));
+                    if let Pat::Ident(ident) = *pat.clone() {
+                        args_ident_session.push(ident.ident.clone());
                     }
                 } else {
                     args_ty_json.push(ArgType::TypePath(ty.clone()));
@@ -83,6 +92,8 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
         args_ty_json,
         args_ident_state,
         args_ty_state,
+        args_ident_session,
+        args_ty_session,
     )
 }
 
@@ -97,6 +108,8 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
         args_ty_json,
         args_ident_state,
         args_ty_state,
+        args_ident_session,
+        args_ty_session,
     ) = fn_items;
 
     let method = match method {
@@ -104,7 +117,7 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
         "post" => quote! {Method::POST},
         "put" => quote! {Method::PUT},
         "delete" => quote! {Method::DELETE},
-        _ => panic!("Unhandling method"),
+        _ => panic!("Unhanding method"),
     };
     let stream = quote! {
 
@@ -113,6 +126,7 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
             use std::pin::Pin;
             use nutt_web::http::method::Method;
             use nutt_web::http::request::Request;
+            use nutt_web::modules::session::Session;
             let f = |req: Request| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
                 #item
                 #(
@@ -126,6 +140,17 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
                             value.clone()
                         } else {panic!("Downcast state type error")}
                     } else { panic!("Args parsing error") };
+                )*
+                #(
+                    println!("{:?}", req.get_session());
+                    let #args_ident_session: #args_ty_session = {
+                        if req.get_session().is_some() {
+                            match req.get_session().as_ref() {
+                                Some(Session::Cookie(session)) => {session.clone()}
+                                None => {panic!("")}
+                            }
+                        } else { panic!("Args parsing error") }
+                    };
                 )*
                 Box::pin(#ident(#(#args_ident.clone(),)*))
             } as fn(Request) -> _;

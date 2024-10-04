@@ -1,26 +1,29 @@
-pub mod modules;
 pub mod http;
+pub mod modules;
 
+use crate::http::method::Method;
+use crate::http::request::{Request, RequestBuilder};
+use crate::http::response::ResponseBuilder;
+use crate::http::status::StatusCode;
+use crate::modules::displayable::DisplayableVec;
+use crate::modules::router::route::Route;
+use crate::modules::router::Router;
+use crate::modules::session::cookie_session::CookieSession;
+use crate::modules::session::{Session, SessionType};
+use crate::modules::state::State;
+use crate::modules::stream_reader::StreamReader;
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 use tracing_log::log::{log, Level};
-use crate::http::method::Method;
-use crate::http::request::{Request, RequestBuilder};
-use crate::modules::displayable::DisplayableVec;
-use crate::modules::router::route::Route;
-use crate::modules::router::Router;
-use crate::modules::state::State;
-use crate::http::status::StatusCode;
-use crate::http::response::ResponseBuilder;
-use crate::modules::stream_reader::StreamReader;
 
 pub struct NuttServer {
     address: Option<(String, u16)>,
     router: Router,
     states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>,
+    session: Option<Session>,
 }
 
 impl Default for NuttServer {
@@ -35,6 +38,7 @@ impl NuttServer {
             address: None,
             router: Router::new(),
             states: Arc::new(RwLock::new(HashMap::new())),
+            session: None,
         }
     }
 
@@ -61,6 +65,13 @@ impl NuttServer {
         self
     }
 
+    pub fn session(mut self, session_type: SessionType) -> Self {
+        match session_type {
+            SessionType::Cookie => self.session = Some(Session::Cookie(CookieSession::new())),
+        }
+        self
+    }
+
     pub async fn run(self) {
         tracing_subscriber::fmt::init();
         if let Some(address) = self.address {
@@ -70,9 +81,12 @@ impl NuttServer {
             log!(Level::Info, "Server started on {}:{}", address.0, address.1);
             let router = Arc::new(self.router);
             let states = self.states.clone();
+            let session = Arc::new(self.session);
             loop {
+                log!(Level::Info, "{:?}", session);
                 let router_arc = router.clone();
                 let states_arc = states.clone();
+                let session_arc = session.clone();
                 match listener.accept().await {
                     Ok((stream, _)) => {
                         tokio::task::spawn(async move {
@@ -80,6 +94,7 @@ impl NuttServer {
                                 Ok((method, path, stream, mut req)) => {
                                     if let Some(route) = router_arc.get((method, path)) {
                                         req.set_states(states_arc.clone());
+                                        req.set_session(session_arc.clone());
                                         route.run_fabric(stream, req)
                                     } else {
                                         stream

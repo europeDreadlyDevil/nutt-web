@@ -1,12 +1,15 @@
-use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hasher};
 use nutt_web::http::response::responder::Responder;
-use nutt_web::http::response::Response;
+use nutt_web::http::response::{Response, ResponseBuilder};
+use nutt_web::http::status::StatusCode;
 use nutt_web::modules::router::route::Route;
 use nutt_web::modules::router::{delete, get, post, put};
+use nutt_web::modules::session::cookie_session::{CookieSession, SessionId};
+use nutt_web::modules::session::SessionType;
 use nutt_web::modules::state::State;
 use nutt_web::{routes, state, NuttServer};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hasher};
 use tracing_log::log::{log, Level};
 
 #[tokio::main]
@@ -21,9 +24,14 @@ struct Data {
     password: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct UserId {
+    id: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct NewStateJson {
-    num: i32
+    num: i32,
 }
 
 struct App {
@@ -45,7 +53,9 @@ impl App {
                     App::get_state,
                     App::change_state,
                     App::login_user,
+                    App::auth_user
                 ))
+                .session(SessionType::Cookie)
                 .state(state!(num))
                 .state(state!(tokens)),
         }
@@ -89,11 +99,27 @@ impl App {
     }
 
     #[post("/login")]
-    async fn login_user(data: Data, tokens: State<HashMap<String, String>>) -> Response {
-        let mut h = DefaultHasher::default();
-        h.write(data.password.as_bytes());
-        tokens.write().insert(data.login.clone(), h.finish().to_string());
-        log!(Level::Info, "{tokens:?}");
-        "success".into_response()
+    async fn login_user(data: Data, mut session: CookieSession) -> Response {
+        let id = session.create_new_session();
+        session.set_data_by_id(id.clone(), ("login", data.login));
+        session.set_data_by_id(id.clone(), ("password", data.password));
+        id.to_string().into_response()
+    }
+
+    #[get("/auth")]
+    async fn auth_user(id: UserId, mut session: CookieSession) -> Response {
+        let data = session.get_session_data(SessionId::from(id.id));
+        if let Some(data) = data {
+            ResponseBuilder::new(
+                StatusCode::Accepted,
+                Data {
+                    login: data.get::<String>("login").unwrap().clone(),
+                    password: data.get::<String>("password").unwrap().clone(),
+                },
+            )
+            .build()
+        } else {
+            ResponseBuilder::new(StatusCode::UnAuthorized, "").build()
+        }
     }
 }

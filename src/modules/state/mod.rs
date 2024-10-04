@@ -3,8 +3,6 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 #[derive(Debug, Clone)]
 pub struct State<T>(Arc<RwLock<T>>);
 
-
-
 impl<T> State<T> {
     pub fn new(value: T) -> Self {
         Self(Arc::new(RwLock::new(value)))
@@ -18,11 +16,11 @@ impl<T> State<T> {
         while self.0.try_write().is_err() {}
         self.0.write().unwrap()
     }
-
 }
 
-#[macro_export] macro_rules! state {
-     ($state:expr) => {
-         (stringify!($state).into(), $state)
-     };
- }
+#[macro_export]
+macro_rules! state {
+    ($state:expr) => {
+        (stringify!($state).into(), $state)
+    };
+}

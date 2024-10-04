@@ -23,7 +23,8 @@ impl Responder for &str {
     }
 }
 
-#[macro_export] macro_rules! not_found {
+#[macro_export]
+macro_rules! not_found {
     () => {
         ResponseBuilder::new(StatusCode::NotFound, "").build()
     };

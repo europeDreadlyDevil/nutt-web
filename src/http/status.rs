@@ -56,7 +56,9 @@ impl Display for StatusCode {
             StatusCode::Ok => "200 OK".to_string(),
             StatusCode::Created => "201 Created".to_string(),
             StatusCode::Accepted => "202 Accepted".to_string(),
-            StatusCode::NonAuthoritativeInformation => "203 Non-Authoritative Information".to_string(),
+            StatusCode::NonAuthoritativeInformation => {
+                "203 Non-Authoritative Information".to_string()
+            }
             StatusCode::NoContent => "204 No Content".to_string(),
             StatusCode::ResetContent => "205 Reset Content".to_string(),
             StatusCode::PartialContent => "206 Partial Content".to_string(),
@@ -77,7 +79,9 @@ impl Display for StatusCode {
             StatusCode::NotFound => "404 Not Found".to_string(),
             StatusCode::MethodNotAllowed => "405 Method Not Allowed".to_string(),
             StatusCode::NotAcceptable => "406 Not Acceptable".to_string(),
-            StatusCode::ProxyAuthenticationRequired => "407 Proxy Authentication Required".to_string(),
+            StatusCode::ProxyAuthenticationRequired => {
+                "407 Proxy Authentication Required".to_string()
+            }
             StatusCode::RequestTimeout => "408 Request Timeout".to_string(),
             StatusCode::Conflict => "409 Conflict".to_string(),
             StatusCode::Gone => "410 Gone".to_string(),

@@ -1,23 +1,21 @@
-mod displayeble;
+pub mod modules;
 pub mod http;
-pub mod router;
-pub mod state;
 
-use crate::displayeble::DisplayableVec;
-use crate::http::method::Method;
-use crate::http::request::{Request, RequestBuilder};
-use crate::http::response::ResponseBuilder;
-use crate::http::status::StatusCode;
-use crate::router::route::Route;
-use crate::router::Router;
-use crate::state::State;
 use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, RwLock};
-use tokio::io::{ AsyncReadExt};
 use tracing_log::log::{log, Level};
+use crate::http::method::Method;
+use crate::http::request::{Request, RequestBuilder};
+use crate::modules::displayable::DisplayableVec;
+use crate::modules::router::route::Route;
+use crate::modules::router::Router;
+use crate::modules::state::State;
+use crate::http::status::StatusCode;
+use crate::http::response::ResponseBuilder;
+use crate::modules::stream_reader::StreamReader;
 
 pub struct NuttServer {
     address: Option<(String, u16)>,
@@ -106,12 +104,7 @@ impl NuttServer {
     async fn handle_stream(
         mut stream: tokio::net::TcpStream,
     ) -> Result<(Method, String, tokio::net::TcpStream, Request), Box<dyn Error>> {
-        let mut bytes_buff = [0; 4096];
-
-        stream.read(&mut bytes_buff).await?;
-
-        let request = String::from_utf8_lossy(&bytes_buff).to_string();
-
+        let request = StreamReader::new(&mut stream).read_req().await;
         let tokens: Vec<&str> = request.lines().nth(0).unwrap().split_whitespace().collect();
         if tokens.len() != 3 {
             return Err("Invalid HTTP request line".into());
@@ -126,7 +119,6 @@ impl NuttServer {
         };
 
         let path = tokens[1].to_string();
-        let request = request.replace("\0", "");
 
         let mut headers = DisplayableVec(vec![]);
         let mut i = 1;

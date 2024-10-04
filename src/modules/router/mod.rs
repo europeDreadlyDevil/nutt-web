@@ -1,5 +1,5 @@
 use crate::http::method::Method;
-use crate::router::route::Route;
+use crate::modules::router::route::Route;
 use std::collections::HashMap;
 
 pub mod route;

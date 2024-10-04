@@ -9,7 +9,7 @@ use nutt_web::modules::state::State;
 use nutt_web::{routes, state, NuttServer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hasher};
+use std::hash::Hasher;
 use tracing_log::log::{log, Level};
 
 #[tokio::main]
@@ -103,23 +103,26 @@ impl App {
         let id = session.create_new_session();
         session.set_data_by_id(id.clone(), ("login", data.login));
         session.set_data_by_id(id.clone(), ("password", data.password));
-        id.to_string().into_response()
+        ResponseBuilder::new(StatusCode::Accepted, id.to_string())
+            .set_cookie("id", id.to_string())
+            .build()
     }
 
     #[get("/auth")]
-    async fn auth_user(id: UserId, mut session: CookieSession) -> Response {
-        let data = session.get_session_data(SessionId::from(id.id));
-        if let Some(data) = data {
-            ResponseBuilder::new(
-                StatusCode::Accepted,
-                Data {
-                    login: data.get::<String>("login").unwrap().clone(),
-                    password: data.get::<String>("password").unwrap().clone(),
-                },
-            )
-            .build()
-        } else {
-            ResponseBuilder::new(StatusCode::UnAuthorized, "").build()
+    async fn auth_user(jar: CookieJar, session: CookieSession) -> Response {
+        if let Some(id) = jar.get("id") {
+            let data = session.get_session_data(SessionId::from(id.get_value()));
+            if let Some(data) = data {
+                return ResponseBuilder::new(
+                    StatusCode::Accepted,
+                    Data {
+                        login: data.get::<String>("login").unwrap().clone(),
+                        password: data.get::<String>("password").unwrap().clone(),
+                    },
+                )
+                    .build()
+            }
         }
+        ResponseBuilder::new(StatusCode::UnAuthorized, "").build()
     }
 }

@@ -1,3 +1,4 @@
+use crate::http::cookie::CookieJar;
 use crate::http::method::Method;
 use crate::http::HttpBody;
 use crate::modules::session::Session;
@@ -14,12 +15,7 @@ pub struct Request {
     session: Arc<Option<Session>>,
     states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>,
     body: HttpBody,
-}
-
-impl Request {
-    pub(crate) fn set_session(&mut self, session: Arc<Option<Session>>) {
-        self.session = session;
-    }
+    cookie_jar: CookieJar,
 }
 
 impl Request {
@@ -29,9 +25,12 @@ impl Request {
     ) {
         self.states = states;
     }
+    pub(crate) fn set_session(&mut self, session: Arc<Option<Session>>) {
+        self.session = session;
+    }
 
-    pub fn get_method(&self) -> Method {
-        self.method.clone()
+    pub(crate) fn set_cookie_jar(&mut self, cookie_jar: CookieJar) {
+        self.cookie_jar = cookie_jar
     }
 }
 
@@ -47,6 +46,13 @@ impl Request {
     pub fn get_session(&self) -> Arc<Option<Session>> {
         self.session.clone()
     }
+    pub fn get_method(&self) -> Method {
+        self.method.clone()
+    }
+
+    pub fn get_cookie_jar(&self) -> CookieJar {
+        self.cookie_jar.clone()
+    }
 }
 
 pub struct RequestBuilder {
@@ -54,6 +60,7 @@ pub struct RequestBuilder {
     body: HttpBody,
     states: HashMap<String, Box<dyn Any + Send + Sync>>,
     session: Option<Session>,
+    cookie_jar: CookieJar,
 }
 
 impl RequestBuilder {
@@ -63,7 +70,13 @@ impl RequestBuilder {
             body: HttpBody::new(serde_json::to_value(body).unwrap()),
             states: HashMap::new(),
             session: None,
+            cookie_jar: CookieJar::new(),
         }
+    }
+
+    pub(crate) fn set_cookie_jar(mut self, cookie_jar: CookieJar) -> Self {
+        self.cookie_jar = cookie_jar;
+        self
     }
 
     pub fn build(self) -> Request {
@@ -71,7 +84,8 @@ impl RequestBuilder {
             method: self.method,
             body: self.body,
             states: Arc::new(RwLock::new(self.states)),
-            session: Arc::new(None),
+            session: Arc::new(self.session),
+            cookie_jar: self.cookie_jar,
         }
     }
 }

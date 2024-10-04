@@ -16,7 +16,6 @@ pub struct Route {
 
 impl Route {
     pub fn run_fabric(&self, stream: TcpStream, req: Request) {
-        println!("{:?}", req);
         let fabric = self.fabric.clone();
         tokio::spawn(async move {
             let resp = fabric(req).await;

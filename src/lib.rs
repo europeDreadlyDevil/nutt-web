@@ -1,6 +1,7 @@
 pub mod http;
 pub mod modules;
 
+use crate::http::cookie::{CookieJar, CookieReq};
 use crate::http::method::Method;
 use crate::http::request::{Request, RequestBuilder};
 use crate::http::response::ResponseBuilder;
@@ -83,7 +84,6 @@ impl NuttServer {
             let states = self.states.clone();
             let session = Arc::new(self.session);
             loop {
-                log!(Level::Info, "{:?}", session);
                 let router_arc = router.clone();
                 let states_arc = states.clone();
                 let session_arc = session.clone();
@@ -150,6 +150,23 @@ impl NuttServer {
             }
             i += 1;
         }
+
+        let mut cookies = CookieJar::new();
+
+        for header in &headers.0 {
+            if header.starts_with("Cookie: ") {
+                for cookie in header[8..].split(";") {
+                    let eq_pos = cookie.find("=").unwrap();
+                    cookies.push_cookie(
+                        &cookie[..eq_pos],
+                        CookieReq::new(
+                            cookie[eq_pos+1..].to_string(),
+                        ))
+                }
+            }
+        }
+
+
         log!(
             Level::Info,
             "Request Method: {}, Path: {}, Headers: {}, Body: {}",
@@ -163,7 +180,7 @@ impl NuttServer {
             method.clone(),
             path,
             stream,
-            RequestBuilder::new(method, serde_json::to_value(body).unwrap()).build(),
+            RequestBuilder::new(method, serde_json::to_value(body).unwrap()).set_cookie_jar(cookies).build(),
         ))
     }
 }

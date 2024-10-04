@@ -33,6 +33,8 @@ type FnItems = (
     Vec<ArgType>,
     Vec<Ident>,
     Vec<ArgType>,
+    Vec<Ident>,
+    Vec<ArgType>,
 );
 
 fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems {
@@ -54,6 +56,8 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
     let mut args_ty_state = vec![];
     let mut args_ident_session = vec![];
     let mut args_ty_session = vec![];
+    let mut args_ident_cookie = vec![];
+    let mut args_ty_cookie = vec![];
 
     for arg in &args {
         if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
@@ -71,6 +75,11 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
                     args_ty_session.push(ArgType::TypePath(ty.clone()));
                     if let Pat::Ident(ident) = *pat.clone() {
                         args_ident_session.push(ident.ident.clone());
+                    }
+                } else if &seg.to_string() == "CookieJar" {
+                    args_ty_cookie.push(ArgType::TypePath(ty.clone()));
+                    if let Pat::Ident(ident) = *pat.clone() {
+                        args_ident_cookie.push(ident.ident.clone());
                     }
                 } else {
                     args_ty_json.push(ArgType::TypePath(ty.clone()));
@@ -94,6 +103,8 @@ fn get_fn_and_args_from_stream(attr: TokenStream, item: TokenStream) -> FnItems 
         args_ty_state,
         args_ident_session,
         args_ty_session,
+        args_ident_cookie,
+        args_ty_cookie,
     )
 }
 
@@ -110,6 +121,8 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
         args_ty_state,
         args_ident_session,
         args_ty_session,
+        args_ident_cookie,
+        args_ty_cookie,
     ) = fn_items;
 
     let method = match method {
@@ -127,6 +140,7 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
             use nutt_web::http::method::Method;
             use nutt_web::http::request::Request;
             use nutt_web::modules::session::Session;
+            use nutt_web::http::cookie::CookieJar;
             let f = |req: Request| -> Pin<Box<dyn Future<Output = Response> + Send + Sync>> {
                 #item
                 #(
@@ -142,7 +156,6 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
                     } else { panic!("Args parsing error") };
                 )*
                 #(
-                    println!("{:?}", req.get_session());
                     let #args_ident_session: #args_ty_session = {
                         if req.get_session().is_some() {
                             match req.get_session().as_ref() {
@@ -150,6 +163,11 @@ fn get_stream(method: &str, fn_items: FnItems) -> TokenStream {
                                 None => {panic!("")}
                             }
                         } else { panic!("Args parsing error") }
+                    };
+                )*
+                #(
+                    let #args_ident_cookie: #args_ty_cookie = {
+                        req.get_cookie_jar()
                     };
                 )*
                 Box::pin(#ident(#(#args_ident.clone(),)*))

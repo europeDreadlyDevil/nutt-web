@@ -31,6 +31,15 @@ pub struct ResponseBuilder {
 }
 
 impl ResponseBuilder {
+    pub fn set_cookie(mut self, key: &str, item: String) -> Self {
+        self.header
+            .headers
+            .insert("Set-Cookie".to_string(), format!("{}={};", key, item));
+        self
+    }
+}
+
+impl ResponseBuilder {
     pub fn new<T: Serialize + Clone + Send>(status_code: StatusCode, response: T) -> Self {
         Self {
             status: status_code,

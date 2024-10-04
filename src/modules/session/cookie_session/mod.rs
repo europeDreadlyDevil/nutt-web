@@ -2,10 +2,8 @@ mod session_data;
 
 use crate::modules::session::cookie_session::session_data::Data;
 use base64ct::Encoding;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use whirlpool::{Digest, Whirlpool};
 

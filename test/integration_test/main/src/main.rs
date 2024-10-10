@@ -2,15 +2,18 @@ use nutt_web::http::response::responder::Responder;
 use nutt_web::http::response::{Response, ResponseBuilder};
 use nutt_web::http::status::StatusCode;
 use nutt_web::modules::router::route::Route;
-use nutt_web::modules::router::{delete, get, post, put};
 use nutt_web::modules::session::cookie_session::{CookieSession, SessionId};
 use nutt_web::modules::session::SessionType;
 use nutt_web::modules::state::State;
+use nutt_web::modules::{delete, get, include_addr, post, put};
 use nutt_web::{routes, state, NuttServer};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hasher;
+use std::ops::Deref;
 use tracing_log::log::{log, Level};
+
+include_addr!();
 
 #[tokio::main]
 async fn main() {
@@ -44,7 +47,8 @@ impl App {
         let tokens: State<HashMap<String, String>> = State::new(HashMap::new());
         Self {
             server: NuttServer::new()
-                .bind(("127.0.0.1", 8080))
+                .bind_dev(LOCAL_ADDR)
+                .bind_release(LOCAL_ADDR)
                 .routes(routes!(
                     App::hello,
                     App::post_data,
@@ -100,6 +104,7 @@ impl App {
 
     #[post("/login")]
     async fn login_user(data: Data, mut session: CookieSession) -> Response {
+        println!("{data:?}");
         let id = session.create_new_session();
         session.set_data_by_id(id.clone(), ("login", data.login));
         session.set_data_by_id(id.clone(), ("password", data.password));
@@ -120,7 +125,7 @@ impl App {
                         password: data.get::<String>("password").unwrap().clone(),
                     },
                 )
-                    .build()
+                .build();
             }
         }
         ResponseBuilder::new(StatusCode::UnAuthorized, "").build()

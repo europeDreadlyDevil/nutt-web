@@ -136,7 +136,9 @@ pub struct CookieJar {
 
 impl CookieJar {
     pub fn new() -> Self {
-        Self { cookies: HashMap::new() }
+        Self {
+            cookies: HashMap::new(),
+        }
     }
 
     pub(crate) fn push_cookie(&mut self, name: &str, cookie: CookieReq) {

@@ -9,3 +9,7 @@ proc-macro = true
 [dependencies]
 syn = {version = "2.0.77", features = ["extra-traits", "printing"]}
 proc-macro2 = "1.0.86"
+cargo_toml = "0.20.5"
+nutt-conf-parser = {path = "../nutt-conf-parser"}
+walkdir = "2.5.0"
+toml = "0.8.19"

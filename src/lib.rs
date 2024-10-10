@@ -21,7 +21,8 @@ use std::sync::{Arc, RwLock};
 use tracing_log::log::{log, Level};
 
 pub struct NuttServer {
-    address: Option<(String, u16)>,
+    address_dev: Option<(String, u16)>,
+    address_release: Option<(String, u16)>,
     router: Router,
     states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>,
     session: Option<Session>,
@@ -36,7 +37,8 @@ impl Default for NuttServer {
 impl NuttServer {
     pub fn new() -> Self {
         Self {
-            address: None,
+            address_dev: None,
+            address_release: None,
             router: Router::new(),
             states: Arc::new(RwLock::new(HashMap::new())),
             session: None,
@@ -50,8 +52,13 @@ impl NuttServer {
         self
     }
 
-    pub fn bind(mut self, address: (&str, u16)) -> Self {
-        self.address = Some((address.0.to_string(), address.1));
+    pub fn bind_dev(mut self, address: (&str, u16)) -> Self {
+        self.address_dev = Some((address.0.to_string(), address.1));
+        self
+    }
+
+    pub fn bind_release(mut self, address: (&str, u16)) -> Self {
+        self.address_release = Some((address.0.to_string(), address.1));
         self
     }
 
@@ -75,7 +82,12 @@ impl NuttServer {
 
     pub async fn run(self) {
         tracing_subscriber::fmt::init();
-        if let Some(address) = self.address {
+        let address = if cfg!(not(debug_assertions)) && self.address_release.is_some() {
+            self.address_release
+        } else {
+            self.address_dev
+        };
+        if let Some(address) = address {
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", address.0, address.1))
                 .await
                 .unwrap();
@@ -159,13 +171,11 @@ impl NuttServer {
                     let eq_pos = cookie.find("=").unwrap();
                     cookies.push_cookie(
                         &cookie[..eq_pos],
-                        CookieReq::new(
-                            cookie[eq_pos+1..].to_string(),
-                        ))
+                        CookieReq::new(cookie[eq_pos + 1..].to_string()),
+                    )
                 }
             }
         }
-
 
         log!(
             Level::Info,
@@ -180,7 +190,9 @@ impl NuttServer {
             method.clone(),
             path,
             stream,
-            RequestBuilder::new(method, serde_json::to_value(body).unwrap()).set_cookie_jar(cookies).build(),
+            RequestBuilder::new(method, serde_json::to_value(body).unwrap())
+                .set_cookie_jar(cookies)
+                .build(),
         ))
     }
 }

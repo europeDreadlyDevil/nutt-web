@@ -1,10 +1,7 @@
 use crate::http::method::Method;
 use crate::modules::router::route::Route;
 use std::collections::HashMap;
-
 pub mod route;
-
-pub use nutt_web_macro::{delete, get, post, put};
 
 pub struct Router {
     routes: HashMap<(Method, String), Route>,

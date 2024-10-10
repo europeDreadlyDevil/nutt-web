@@ -26,6 +26,11 @@ impl<'a> StreamReader<'a> {
                 if let Some(end) = len_str.find("\r\n") {
                     content_length = len_str[..end].trim().parse::<usize>().unwrap();
                 }
+            } else if let Some(line) = req.find("content-length: ") {
+                let len_str = &req[line + 15..];
+                if let Some(end) = len_str.find("\r\n") {
+                    content_length = len_str[..end].trim().parse::<usize>().unwrap();
+                }
             }
         }
         if content_length > 0 {

@@ -1,3 +1,5 @@
+mod include_addr;
+
 use core::panic;
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
@@ -202,4 +204,9 @@ pub fn put(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn delete(attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_items = get_fn_and_args_from_stream(attr, item);
     get_stream("delete", fn_items)
+}
+
+#[proc_macro]
+pub fn include_addr(_input: TokenStream) -> TokenStream {
+    include_addr::include_addr(_input)
 }

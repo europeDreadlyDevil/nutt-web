@@ -2,9 +2,11 @@
 name = "nutt-web"
 version = "0.0.0"
 edition = "2021"
+description = "New modern backend web framework focused in microservice infrastructure"
+license = "Apache-2.0"
 
 [workspace]
-members = ['.', 'src/modules/nutt-web-macro', "src/modules/nutt-conf-parser", "test/integration_test/main"]
+members = ['.', 'src/modules/nutt-web-macro',"test/integration_test/main"]
 
 [dependencies]
 tokio = {version = "1.40.0", features = ["macros", "rt", "rt-multi-thread", "net", "io-util"]}

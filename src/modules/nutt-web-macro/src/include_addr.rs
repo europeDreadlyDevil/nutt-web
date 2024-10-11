@@ -22,7 +22,6 @@ pub fn include_addr(_input: TokenStream) -> TokenStream {
             for dir in WalkDir::new(dir).max_depth(1) {
                 try_read_conf(&mut conf_str, dir)
             }
-
             current_dir = dir.parent();
         }
     }

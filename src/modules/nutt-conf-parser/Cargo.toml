@@ -1,8 +1,0 @@
-[package]
-name = "nutt-conf-parser"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-serde = "1.0.210"
-toml = "0.8.19"

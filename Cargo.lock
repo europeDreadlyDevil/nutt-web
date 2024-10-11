@@ -307,6 +307,8 @@ dependencies = [
 [[package]]
 name = "nutt-conf-parser"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "679ccce0a99585f95414d7fa2b8543312049c46bcda83ae509277388dea04883"
 dependencies = [
  "serde",
  "toml",

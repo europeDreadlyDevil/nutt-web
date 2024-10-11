@@ -15,7 +15,7 @@ tracing-subscriber = "0.3.18"
 tracing-log = "0.2.0"
 serde = {version = "1.0.210", features = ["derive"]}
 serde_json = "1.0.128"
-nutt-web-macro = {version = "*", path = "src/modules/nutt-web-macro" }
+nutt-web-macro = {version = "0.1.0"}
 chrono = "0.4.38"
 whirlpool = {version = "0.10.4" }
 base64ct = { version = "1.6.0", features = ["alloc"] }

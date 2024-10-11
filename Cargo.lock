@@ -320,7 +320,7 @@ version = "0.0.0"
 dependencies = [
  "base64ct",
  "chrono",
- "nutt-web-macro",
+ "nutt-web-macro 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "tokio",
@@ -333,6 +333,20 @@ dependencies = [
 [[package]]
 name = "nutt-web-macro"
 version = "0.1.0"
+dependencies = [
+ "cargo_toml",
+ "nutt-conf-parser",
+ "proc-macro2",
+ "syn",
+ "toml",
+ "walkdir",
+]
+
+[[package]]
+name = "nutt-web-macro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16fe96c320a756c8c690803dc0933433d5bf4f0c0e0231b35eebf06f23e1de0f"
 dependencies = [
  "cargo_toml",
  "nutt-conf-parser",

@@ -320,7 +320,7 @@ version = "0.0.0"
 dependencies = [
  "base64ct",
  "chrono",
- "nutt-web-macro 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nutt-web-macro",
  "serde",
  "serde_json",
  "tokio",
@@ -328,18 +328,6 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "whirlpool",
-]
-
-[[package]]
-name = "nutt-web-macro"
-version = "0.1.0"
-dependencies = [
- "cargo_toml",
- "nutt-conf-parser",
- "proc-macro2",
- "syn",
- "toml",
- "walkdir",
 ]
 
 [[package]]

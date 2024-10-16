@@ -61,11 +61,12 @@ impl App {
                 ))
                 .session(SessionType::Cookie)
                 .state(state!(num))
-                .state(state!(tokens)),
+                .state(state!(tokens))
+                .set_tls_certs(Some(("./certs/certificate.crt", "./certs/private.key"))),
         }
     }
     pub async fn run(self) {
-        self.server.run().await
+        self.server.run().await.unwrap();
     }
 
     #[get("/")]

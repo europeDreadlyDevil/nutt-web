@@ -17,8 +17,23 @@ use serde::Deserialize;
 use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::pki_types::pem::PemObject;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::{TlsAcceptor, server::TlsStream};
 use tracing_log::log::{log, Level};
+use anyhow::Result;
+
+pub trait Stream {}
+
+impl Stream for TlsStream<TcpStream> {}
+impl Stream for TcpStream {}
 
 pub struct NuttServer {
     address_dev: Option<(String, u16)>,
@@ -26,6 +41,7 @@ pub struct NuttServer {
     router: Router,
     states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>,
     session: Option<Session>,
+    tls_certs: Option<(String, String)>
 }
 
 impl Default for NuttServer {
@@ -42,6 +58,7 @@ impl NuttServer {
             router: Router::new(),
             states: Arc::new(RwLock::new(HashMap::new())),
             session: None,
+            tls_certs: None,
         }
     }
 
@@ -80,7 +97,14 @@ impl NuttServer {
         self
     }
 
-    pub async fn run(self) {
+    pub fn set_tls_certs(mut self, certs: Option<(&str, &str)>) -> Self {
+        if let Some(certs) = certs {
+            self.tls_certs = Some((certs.0.to_string(), certs.1.to_string()))
+        }
+        self
+    }
+
+    pub async fn run(self) -> Result<()> {
         tracing_subscriber::fmt::init();
         let address = if cfg!(not(debug_assertions)) && self.address_release.is_some() {
             self.address_release
@@ -88,6 +112,17 @@ impl NuttServer {
             self.address_dev
         };
         if let Some(address) = address {
+            let (cert, key) = self.tls_certs.unwrap();
+            let certs = Self::load_certs(&PathBuf::from(cert.clone()));
+            let key = Self::load_private_key(&PathBuf::from(key.clone()));
+
+            // Configure the server with the certificate and private key
+            let mut config = ServerConfig::builder()
+                .with_no_client_auth() // No client certificate authentication
+                .with_single_cert(certs, key).unwrap();
+
+            let acceptor = TlsAcceptor::from(Arc::new(config));
+
             let listener = tokio::net::TcpListener::bind(format!("{}:{}", address.0, address.1))
                 .await
                 .unwrap();
@@ -101,21 +136,24 @@ impl NuttServer {
                 let session_arc = session.clone();
                 match listener.accept().await {
                     Ok((stream, _)) => {
+                        let acceptor_ = acceptor.clone();
                         tokio::task::spawn(async move {
-                            match Self::handle_stream(stream).await {
-                                Ok((method, path, stream, mut req)) => {
-                                    if let Some(route) = router_arc.get((method, path)) {
-                                        req.set_states(states_arc.clone());
-                                        req.set_session(session_arc.clone());
-                                        route.run_fabric(stream, req)
-                                    } else {
-                                        stream
-                                            .try_write(not_found!().to_string().as_bytes())
-                                            .unwrap();
+                            if let Ok(stream) = acceptor_.accept(stream).await {
+                                match Self::handle_stream(stream).await {
+                                    Ok((method, path, mut stream, mut req)) => {
+                                        if let Some(route) = router_arc.get((method, path)) {
+                                            req.set_states(states_arc.clone());
+                                            req.set_session(session_arc.clone());
+                                            route.run_fabric(stream, req)
+                                        } else {
+                                            stream
+                                                .write(not_found!().to_string().as_bytes()).await?;
+                                        }
                                     }
+                                    Err(e) => log!(Level::Error, "Error handling stream: {}", e),
                                 }
-                                Err(e) => log!(Level::Error, "Error handling stream: {}", e),
                             }
+                            anyhow::Ok(())
                         });
                     }
                     Err(e) => {
@@ -128,13 +166,13 @@ impl NuttServer {
         }
     }
 
-    async fn handle_stream(
-        mut stream: tokio::net::TcpStream,
-    ) -> Result<(Method, String, tokio::net::TcpStream, Request), Box<dyn Error>> {
+    async fn handle_stream<T: Stream + AsyncReadExt + Unpin>(
+        mut stream: T,
+    ) -> Result<(Method, String, T, Request)> {
         let request = StreamReader::new(&mut stream).read_req().await;
         let tokens: Vec<&str> = request.lines().nth(0).unwrap().split_whitespace().collect();
         if tokens.len() != 3 {
-            return Err("Invalid HTTP request line".into());
+            return Err(anyhow::Error::msg("Invalid HTTP request line"));
         }
 
         let method = match tokens[0] {
@@ -142,7 +180,7 @@ impl NuttServer {
             "POST" => Method::POST,
             "PUT" => Method::PUT,
             "DELETE" => Method::DELETE,
-            _ => return Err("Unsupported HTTP method".into()),
+            _ => return Err(anyhow::Error::msg("Unsupported HTTP method")),
         };
 
         let path = tokens[1].to_string();
@@ -194,5 +232,16 @@ impl NuttServer {
                 .set_cookie_jar(cookies)
                 .build(),
         ))
+    }
+
+    fn load_certs(filename: &Path) -> Vec<CertificateDer<'static>> {
+        CertificateDer::pem_file_iter(filename)
+            .expect("cannot open certificate file")
+            .map(|result| result.unwrap())
+            .collect()
+    }
+
+    fn load_private_key(filename: &Path) -> PrivateKeyDer<'static> {
+        PrivateKeyDer::from_pem_file(filename).expect("cannot read private key file")
     }
 }

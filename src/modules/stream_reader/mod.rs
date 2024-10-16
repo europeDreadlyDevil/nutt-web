@@ -1,16 +1,17 @@
 use std::ops::DerefMut;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
-use tokio::net::TcpStream;
+use crate::Stream;
 
-pub struct StreamReader<'a> {
-    stream: &'a mut TcpStream,
+pub struct StreamReader<'a, T: Stream> {
+    stream: &'a mut T,
 }
 
-impl<'a> StreamReader<'a> {
-    pub fn new(stream: &'a mut TcpStream) -> StreamReader {
+impl<'a, T: Stream + AsyncReadExt + Unpin> StreamReader<'a, T> {
+    pub fn new(stream: &'a mut T) -> StreamReader<T> {
         Self { stream }
     }
     pub async fn read_req(&mut self) -> String {
+
         let mut buf_reader = BufReader::new(self.stream.deref_mut());
         let mut content_length = 0;
         let mut req = String::new();

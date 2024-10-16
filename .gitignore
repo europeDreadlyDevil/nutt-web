@@ -1,3 +1,4 @@
 /target
 .idea
 src/router/nutt-web-macro/target/
+/test/integration_test/main/certs

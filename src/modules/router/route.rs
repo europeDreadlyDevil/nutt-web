@@ -5,7 +5,8 @@ use crate::http::response::Response;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::net::TcpStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use crate::Stream;
 
 type FuncPointer = fn(Request) -> Pin<Box<dyn Future<Output = Response> + Send + Sync>>;
 pub struct Route {
@@ -15,12 +16,12 @@ pub struct Route {
 }
 
 impl Route {
-    pub fn run_fabric(&self, stream: TcpStream, req: Request) {
+    pub fn run_fabric<T: Stream + AsyncWriteExt + AsyncReadExt + Unpin + Send + 'static>(&self, mut stream: T, req: Request) {
         let fabric = self.fabric.clone();
         tokio::spawn(async move {
             let resp = fabric(req).await;
             stream
-                .try_write(resp.into_response().to_string().as_bytes())
+                .write(resp.into_response().to_string().as_bytes()).await
                 .unwrap()
         });
     }

@@ -9,7 +9,7 @@ license = "Apache-2.0"
 members = ['.',"test/integration_test/main"]
 
 [dependencies]
-tokio = {version = "1.40.0", features = ["macros", "rt", "rt-multi-thread", "net", "io-util"]}
+tokio = {version = "1.40.0", features = ["macros", "rt", "rt-multi-thread", "net", "io-util", "sync", "test-util"]}
 tokio-rustls = {version = "0.26.0", features = ["default"]}
 rustls = "0.23.14"
 tracing = "0.1.40"

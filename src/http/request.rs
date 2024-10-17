@@ -19,17 +19,17 @@ pub struct Request {
 }
 
 impl Request {
-    pub(crate) fn set_states(
+    pub fn set_states(
         &mut self,
         states: Arc<RwLock<HashMap<String, Box<dyn Any + Send + Sync>>>>,
     ) {
         self.states = states;
     }
-    pub(crate) fn set_session(&mut self, session: Arc<Option<Session>>) {
+    pub fn set_session(&mut self, session: Arc<Option<Session>>) {
         self.session = session;
     }
 
-    pub(crate) fn set_cookie_jar(&mut self, cookie_jar: CookieJar) {
+    pub fn set_cookie_jar(&mut self, cookie_jar: CookieJar) {
         self.cookie_jar = cookie_jar
     }
 }

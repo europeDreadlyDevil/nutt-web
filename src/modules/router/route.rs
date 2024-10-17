@@ -6,7 +6,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use crate::Stream;
+use crate::server::stream::Stream;
 
 type FuncPointer = fn(Request) -> Pin<Box<dyn Future<Output = Response> + Send + Sync>>;
 pub struct Route {

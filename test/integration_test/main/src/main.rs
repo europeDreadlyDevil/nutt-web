@@ -6,12 +6,13 @@ use nutt_web::modules::session::cookie_session::{CookieSession, SessionId};
 use nutt_web::modules::session::SessionType;
 use nutt_web::modules::state::State;
 use nutt_web::modules::{delete, get, include_addr, post, put};
-use nutt_web::{routes, state, NuttServer};
+use nutt_web::{routes, state};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hasher;
 use std::ops::Deref;
 use tracing_log::log::{log, Level};
+use nutt_web::server::NuttServer;
 
 include_addr!();
 
